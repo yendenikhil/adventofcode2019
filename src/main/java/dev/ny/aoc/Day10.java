@@ -2,27 +2,44 @@ package dev.ny.aoc;
 
 import lombok.Data;
 import lombok.Getter;
-import org.w3c.dom.ls.LSOutput;
 
-import java.math.BigDecimal;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 
 public class Day10 {
     public static void main(String[] args) {
 
         final AstroidMap map = new AstroidMap(INPUT);
+        final List<Point> points = map.getAsteroids().stream()
+                .peek(p -> p.setRelativeAsteroids(map.removeHiddenAsteroids(map.getRelativePositions(p))))
+                .collect(toList());
         // part 1
-        map.getAsteroids().stream()
-                .map(map::getRelativePositions)
-                .map(map::removeHiddenAsteroids)
-                .map(List::size)
-                .mapToInt(Integer::valueOf)
-                .max().ifPresent(System.out::println);
+        final int max = points.stream()
+                .map(Point::getRelativeAsteroids)
+                .mapToInt(List::size)
+                .max()
+                .getAsInt();
+        System.out.println(
+                max
+        );
         // part 2
-//        map.getAsteroids().stream()
-//                .map(map::getRelativePositions)
-//                .forEach(map::removeHiddenAndPrint);
+        for (int i = 0; i < points.size(); i++) {
+            final Point p = points.get(i);
+            if (p.getRelativeAsteroids().size() == max) {
+                p.getRelativeAsteroids().sort(Comparator.comparing(Point::getAngle));
+                System.out.println(p.x + " " + p.y);
+                // this is faulty solution, it puts the relative x=0 to last and not first
+                final Point x = p.getRelativeAsteroids().get(198); // because x coor zero makes it the highest number and not lowest in atan2
+                System.out.println(x.x + " " + x.y);
+                System.out.println((p.x + x.x) + " " + (p.y + x.y));
+
+            }
+        }
     }
 
     private static final String INPUT =
@@ -66,9 +83,9 @@ public class Day10 {
         private final List<Point> asteroids = new ArrayList<>();
         private static final Point ZERO = new Point(0, 0);
 
-        public AstroidMap(String input) {
+        AstroidMap(String input) {
             this.input = input;
-            final List<String> lines = input.lines().collect(Collectors.toList());
+            final List<String> lines = input.lines().collect(toList());
             for (int i = 0; i < lines.size(); i++) {
                 final String line = lines.get(i);
                 final char[] chars = line.toCharArray();
@@ -85,21 +102,14 @@ public class Day10 {
                     .map(a -> new Point(a.x - asteroid.x, a.y - asteroid.y))
                     .filter(a -> !a.equals(ZERO))
                     .sorted((a, b) -> Math.abs(a.x) + Math.abs(a.y) - Math.abs(b.x) - Math.abs(b.y))
-                    .collect(Collectors.toList());
+                    .collect(toList());
         }
 
-        public int removeHiddenAsteroidsAndCount(final List<Point> input) {
-            final Set<String> collect = input.stream()
-                    .map(p -> p.getQuadrant() + String.valueOf(p.slope()))
-                    .collect(Collectors.toSet());
-            return collect.size();
-        }
-
-        public List<Point> removeHiddenAsteroids(final List<Point> input) {
+        List<Point> removeHiddenAsteroids(final List<Point> input) {
             List<Point> visiblePoints = new ArrayList<>();
             final Map<Double, List<Point>> collect = input.stream()
                     .sorted(Comparator.comparing(Point::getDistance))
-                    .collect(Collectors.groupingBy(Point::getAngle, Collectors.toList()));
+                    .collect(groupingBy(Point::getAngle, toList()));
             collect.keySet().stream()
                     .sorted()
                     .forEach(v -> visiblePoints.add(collect.get(v).get(0)));
@@ -112,48 +122,18 @@ public class Day10 {
     private static class Point {
         final int x;
         final int y;
-        final BigDecimal distance;
+        final double distance;
         final double angle;
+        List<Point> relativeAsteroids;
 
-        public Point(int x, int y) {
+        Point(int x, int y) {
             this.x = x;
             this.y = y;
-            final BigDecimal bx = BigDecimal.valueOf(x);
-            final BigDecimal by = BigDecimal.valueOf(y);
-
-            distance = bx.pow(2).add(by.pow(2));
-
-            angle = Math.toDegrees(Math.atan(y * -1 / (double) x));
-        }
-
-        public int getQuadrant() {
-            if (x > 0 && y > 0)
-                return 2;
-            if (x < 0 && y > 0)
-                return 4;
-            if (x < 0 && y < 0)
-                return 6;
-            if (x > 0 && y < 0)
-                return 8;
-            if (x > 0)
-                return 3;
-            if (x < 0)
-                return 7;
-            if (y > 0)
-                return 1;
-            if (y < 0)
-                return 5;
-            return -1;
-        }
-
-        float slope() {
-            return y / (float) x;
+            distance = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
+            angle = Math.toDegrees(Math.atan2(x * -1, y));
         }
 
 
-        Point scale(final int scale) {
-            return new Point(scale * x, scale * y);
-        }
     }
 }
 
