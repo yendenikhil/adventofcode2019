@@ -87,26 +87,26 @@ public class Day3 {
                 .collect(Collectors.toList());
     }
 
+    @Getter
+    @RequiredArgsConstructor
+    @ToString
+    @EqualsAndHashCode
+    private static class Point {
+        public static final Point ZERO = new Point(0, 0);
+        final int x;
+        final int y;
+
+        Point addPoint(final Point point) {
+            return new Point(this.x + point.getX(), this.y + point.getY());
+        }
+
+        Point scalePoint(final int scale) {
+            return new Point(this.x * scale, this.y * scale);
+        }
+
+        int distance() {
+            return Math.abs(this.x) + Math.abs(this.y);
+        }
+    }
 }
 
-@Getter
-@RequiredArgsConstructor
-@ToString
-@EqualsAndHashCode
-class Point {
-    public static final Point ZERO = new Point(0, 0);
-    final int x;
-    final int y;
-
-    Point addPoint(final Point point) {
-        return new Point(this.x + point.getX(), this.y + point.getY());
-    }
-
-    Point scalePoint(final int scale) {
-        return new Point(this.x * scale, this.y * scale);
-    }
-
-    int distance() {
-        return Math.abs(this.x) + Math.abs(this.y);
-    }
-}
