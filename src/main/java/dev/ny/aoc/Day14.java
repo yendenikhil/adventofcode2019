@@ -31,18 +31,18 @@ public class Day14 {
 
     private static void partB(long oreForOneRun) {
         final long expected = 1_000_000_000_000L;
-        long fuelQ = (long) Math.ceil(expected / oreForOneRun);
+        long fuelQ = (long) Math.ceil(expected / (double)oreForOneRun);
         Item fuel = new Item("FUEL", fuelQ);
         while (true) {
             final List<Item> excess = new ArrayList<>();
             final Item partB = solveEquation(fuel, excess);
             System.out.println(partB);
             System.out.println(fuel.getQuantity());
-//            System.out.println(excess);
+            System.out.println(excess);
             if (partB.getQuantity() > expected) {
                 break;
             }
-            long newNum = (long) (fuel.getQuantity() + Math.ceil((expected - partB.getQuantity()) / oreForOneRun));
+            long newNum = (long) (fuel.getQuantity() + Math.ceil((expected - partB.getQuantity()) / (double)oreForOneRun));
             if (newNum <= fuel.getQuantity()) {
                 newNum = fuel.getQuantity() + 1L;
             }
@@ -75,8 +75,8 @@ public class Day14 {
         final Equation eq = equations.stream()
                 .filter(e -> output.getName().equals(e.getResult().getName()))
                 .findFirst().get();
-        final int scale = (int) Math.ceil(quantity / (double) eq.getResult().getQuantity());
-        final int excessAmount = (int) (scale * eq.getResult().getQuantity() - quantity);
+        final long scale = (long) Math.ceil(quantity / (double) eq.getResult().getQuantity());
+        final long excessAmount = scale * eq.getResult().getQuantity() - quantity;
         final Item excessItem = new Item();
         excessItem.setName(output.getName());
         excessItem.setQuantity(excessAmount);
@@ -100,23 +100,71 @@ public class Day14 {
         return ore;
     }
 
-    private static final String INPUT = "171 ORE => 8 CNZTR\n" +
-            "7 ZLQW, 3 BMBT, 9 XCVML, 26 XMNCP, 1 WPTQ, 2 MZWV, 1 RJRHP => 4 PLWSL\n" +
-            "114 ORE => 4 BHXH\n" +
-            "14 VRPVC => 6 BMBT\n" +
-            "6 BHXH, 18 KTJDG, 12 WPTQ, 7 PLWSL, 31 FHTLT, 37 ZDVW => 1 FUEL\n" +
-            "6 WPTQ, 2 BMBT, 8 ZLQW, 18 KTJDG, 1 XMNCP, 6 MZWV, 1 RJRHP => 6 FHTLT\n" +
-            "15 XDBXC, 2 LTCX, 1 VRPVC => 6 ZLQW\n" +
-            "13 WPTQ, 10 LTCX, 3 RJRHP, 14 XMNCP, 2 MZWV, 1 ZLQW => 1 ZDVW\n" +
-            "5 BMBT => 4 WPTQ\n" +
-            "189 ORE => 9 KTJDG\n" +
-            "1 MZWV, 17 XDBXC, 3 XCVML => 2 XMNCP\n" +
-            "12 VRPVC, 27 CNZTR => 2 XDBXC\n" +
-            "15 KTJDG, 12 BHXH => 5 XCVML\n" +
-            "3 BHXH, 2 VRPVC => 7 MZWV\n" +
-            "121 ORE => 7 VRPVC\n" +
-            "7 XCVML => 6 RJRHP\n" +
-            "5 BHXH, 4 VRPVC => 5 LTCX";
+    private static final String INPUT = "2 WZMS, 3 NPNFD => 5 SLRGD\n" +
+            "4 QTFCJ, 1 RFZF => 1 QFQPN\n" +
+            "2 LCDPV => 6 DGPND\n" +
+            "1 MVSHM, 3 XSDR, 1 RSJD => 6 GNKB\n" +
+            "6 XJRML, 1 LCDPV => 7 HTSJ\n" +
+            "3 LQBX => 3 GKNTG\n" +
+            "2 NZMLP, 5 FTNZQ => 2 QSLTQ\n" +
+            "8 WZMS, 4 XSDR, 2 NPNFD => 9 CJVT\n" +
+            "16 HFHB, 1 TRVQG => 8 QTBQ\n" +
+            "177 ORE => 7 DNWGS\n" +
+            "10 ZJFM, 4 MVSHM => 8 LCDPV\n" +
+            "1 LTVKM => 5 ZJFM\n" +
+            "5 QFJS => 6 LTVKM\n" +
+            "4 CZHM, 12 CJVT => 9 PGMS\n" +
+            "104 ORE => 8 QCGM\n" +
+            "1 JWLZ, 5 QTFCJ => 4 DHNL\n" +
+            "20 VKRBJ => 3 FQCKM\n" +
+            "1 FTNZQ, 1 QSLTQ => 4 HFHB\n" +
+            "1 JLPVD => 2 JGJFQ\n" +
+            "12 PTDL => 1 LVPK\n" +
+            "31 JGJFQ, 5 PGMS, 38 PTDL, 1 PGCZ, 3 LVPK, 47 JGHWZ, 21 LVPJ, 27 LTVKM, 5 ZDQD, 5 LCDPV => 1 FUEL\n" +
+            "6 WFJT, 2 VKRBJ => 8 NZMLP\n" +
+            "21 HNJW, 3 NXTL, 8 WZMS, 5 SLRGD, 2 VZJHN, 6 QFQPN, 5 DHNL, 19 RNXQ => 2 PGCZ\n" +
+            "1 QTBQ, 3 MVSHM => 1 XSDR\n" +
+            "25 ZKZNB => 9 VZJHN\n" +
+            "4 WHLT => 9 PHFKW\n" +
+            "29 QPVNV => 9 JGHWZ\n" +
+            "13 ZJFM => 2 RNXQ\n" +
+            "1 DGPND, 12 PHFKW => 9 BXGXT\n" +
+            "25 ZJFM => 6 WHLT\n" +
+            "3 QPVNV => 9 BTLH\n" +
+            "1 KXQG => 8 TRVQG\n" +
+            "2 JWLZ => 8 JLPVD\n" +
+            "2 GKNTG => 6 NXTL\n" +
+            "28 VKRBJ => 2 DXWSH\n" +
+            "126 ORE => 7 VKRBJ\n" +
+            "11 WHLT => 8 QTFCJ\n" +
+            "1 NZMLP, 1 DNWGS, 8 VKRBJ => 5 XJRML\n" +
+            "16 XJRML => 6 SKHJL\n" +
+            "3 QTFCJ, 6 ZTHWQ, 15 GKNTG, 1 NXRZL, 1 DGBRZ, 1 SKHJL, 1 VZJHN => 7 LVPJ\n" +
+            "1 HFHB, 16 QTBQ, 7 XJRML => 3 NPNFD\n" +
+            "2 TRVQG => 4 JWLZ\n" +
+            "8 GKNTG, 1 NSVG, 23 RNXQ => 9 NXRZL\n" +
+            "3 QTFCJ => 6 CZHM\n" +
+            "2 NPNFD => 8 JQSTD\n" +
+            "1 DXWSH, 1 DGPND => 4 DGBRZ\n" +
+            "3 DXWSH, 24 QFJS, 8 FTNZQ => 8 KXQG\n" +
+            "6 FXJQX, 14 ZKZNB, 3 QTFCJ => 2 ZTHWQ\n" +
+            "31 NSVG, 1 NXRZL, 3 QPVNV, 2 RNXQ, 17 NXTL, 6 BTLH, 1 HNJW, 2 HTSJ => 1 ZDQD\n" +
+            "5 RNXQ, 23 BXGXT, 5 JQSTD => 7 QPVNV\n" +
+            "8 NPNFD => 7 WZMS\n" +
+            "6 KXQG => 7 ZDZM\n" +
+            "129 ORE => 9 WFJT\n" +
+            "9 NZMLP, 5 FQCKM, 8 QFJS => 1 LQBX\n" +
+            "170 ORE => 9 GDBNV\n" +
+            "5 RSJD, 3 CZHM, 1 GNKB => 6 HNJW\n" +
+            "14 HTSJ => 7 FXJQX\n" +
+            "11 NPNFD, 1 LCDPV, 2 FXJQX => 6 RSJD\n" +
+            "9 DGBRZ => 6 ZKZNB\n" +
+            "7 GDBNV, 1 QCGM => 8 QFJS\n" +
+            "2 QFQPN, 5 JWLZ => 4 NSVG\n" +
+            "8 QFJS, 1 ZDZM, 4 QSLTQ => 7 MVSHM\n" +
+            "1 LTVKM => 8 RFZF\n" +
+            "4 DNWGS => 3 FTNZQ\n" +
+            "6 VZJHN => 9 PTDL";
 
     @Data
     private static class Equation {
