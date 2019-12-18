@@ -4,12 +4,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 
 public class Day15 {
     public static void main(String[] args) {
@@ -30,12 +31,17 @@ public class Day15 {
         private boolean foundOxygen = false;
 
         void process(Point currentPos) {
-            while(!foundOxygen){
+            validPoints.add(currentPos);
+            while (!foundOxygen) {
                 final Long input = prepareInput(currentPos);
                 final Long output = computer.calcOutput(input);
-                System.out.println(currentPos + " input: " + input + " output: " + output);
+//                System.out.println(currentPos + " input: " + input + " output: " + output);
                 currentPos = parseOutput(currentPos, input, output);
             }
+            System.out.println(validPoints);
+            Map<String, List<Point>> map = new HashMap<>();
+            map.put(".", validPoints);
+            DrawPoints.draw(map);
         }
 
         private Point parseOutput(Point currentPos, Long input, Long output) {
@@ -53,11 +59,7 @@ public class Day15 {
                 validPoints.add(newcurr);
                 return newcurr;
             } else if (output == 2L) { // we found oxygen, stop for now.
-                final Point dir = UNIT_MOVES.stream()
-                        .filter(p -> p.getInput() == input)
-                        .findFirst().get();
-                final Point newcurr = currentPos.move(dir);
-                validPoints.add(newcurr);
+                validPoints.add(currentPos);
                 foundOxygen = true;
                 return Point.ZERO;
             } else {
@@ -81,23 +83,30 @@ public class Day15 {
             // if the road is traversed in all direction but we are not close to answer.
             // then we need to re-traverse the road to explore new possibilities.
             // pass two - greedy
-            // TODO: Do I need to put the counter here so that the robot is not stuck on same explored bits?
             // somthing needs to be done here. we get more than one possibility in second pass. How do we choose in that case?
             final Optional<Point> secondPass = possibilities.stream()
                     .filter(filterBlocked)
                     .findFirst();
-            if (secondPass.isPresent()) {
-                return inputFromPoints(currentPos, secondPass.get());
-            }
+            final List<Point> secondPasses = possibilities.stream()
+                    .filter(filterBlocked)
+                    .collect(toList());
+            // lets get indexes on when this was added in valid move, will this help?
+            final OptionalInt min = secondPasses.stream()
+                    .mapToInt(validPoints::indexOf)
+                    .min();
+            return inputFromPoints(currentPos, validPoints.get(min.getAsInt()));
+//            if (secondPass.isPresent()) {
+//                return inputFromPoints(currentPos, secondPass.get());
+//            }
             // if I reach here then something is really wrong!
-            System.out.println("ERROR: 11111");
-            return 0L;
+//            System.out.println("ERROR: 11111");
+//            return 0L;
         }
 
         List<Point> possibleMoves(final Point startingPoint) {
             return UNIT_MOVES.stream()
                     .map(startingPoint::move)
-                    .collect(Collectors.toList());
+                    .collect(toList());
         }
 
         Long inputFromPoints(final Point startPos, final Point nextPos) {
@@ -143,6 +152,60 @@ public class Day15 {
         }
     }
 
+    private static class DrawPoints {
+        static void draw(Map<String, List<Point>> legends) {
+            legends.entrySet().stream()
+                    .map(e -> prepare(e.getKey(), e.getValue()))
+                    .forEach(System.out::println);
+        }
+
+        private static List<String> prepare(final String legend, final List<Point> input) {
+            // first lets split the rows
+            final int offset = minX(input);
+            final int length = maxX(input) - offset;
+            final List<Character> raw = Stream.generate(() -> ' ').limit(length).collect(toList());
+            return splitRows(input).stream()
+                    .map(l -> l.stream().map(Point::getX).map(Math::toIntExact).map(v -> v + offset).collect(toList()))
+                    .map(indexList -> replaceLegend(legend, raw, indexList))
+                    .map(String::valueOf)
+                    .collect(toList());
+
+        }
+
+        private static char[] replaceLegend(final String legend, final List<Character> raw, final List<Integer> indexes) {
+            char[] ans = new char[raw.size()];
+            final char replacement = legend.charAt(0);
+            for (int i = 0; i < raw.size(); i++) {
+                if (indexes.contains(i)) {
+                    ans[i] = replacement;
+                } else {
+                    ans[i] = raw.get(i);
+                }
+            }
+            return ans;
+        }
+
+        private static List<List<Point>> splitRows(final List<Point> points) {
+            final Map<Long, List<Point>> collect = points.stream()
+                    .collect(groupingBy(Point::getY, toList()));
+            return List.copyOf(collect.values());
+        }
+
+        private static int minX(List<Point> list) {
+            return Math.toIntExact(list.stream()
+                    .mapToLong(Point::getX)
+                    .min()
+                    .getAsLong());
+        }
+
+        private static int maxX(List<Point> list) {
+            return Math.toIntExact(list.stream()
+                    .mapToLong(Point::getX)
+                    .max()
+                    .getAsLong());
+        }
+    }
+
     @Data
     private static class IntcodeComputer {
         private final List<Long> series;
@@ -150,7 +213,7 @@ public class Day15 {
         public IntcodeComputer(final String input) {
             series = Arrays.stream(input.split(","))
                     .map(Long::parseLong)
-                    .collect(Collectors.toList());
+                    .collect(toList());
         }
 
         private Integer pointer = 0;
@@ -254,7 +317,6 @@ public class Day15 {
                 }
             }
         }
-
     }
 
 }
