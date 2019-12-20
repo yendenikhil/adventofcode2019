@@ -1,24 +1,17 @@
 package dev.ny.aoc;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.*;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalInt;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
 import static java.util.stream.Collectors.toList;
 
 public class Day15 {
     public static void main(String[] args) {
-        final Navigator nav = new Navigator(new IntcodeComputer(INPUT));
+        final Navigator nav = new Navigator(Point.ZERO);
         nav.process(Point.ZERO);
         System.out.println("part 1: " + nav.shortestPath());
     }
@@ -27,193 +20,98 @@ public class Day15 {
 
     @Data
     private static class Navigator {
-        private final IntcodeComputer computer;
-        private final List<Point> validPoints = new ArrayList<>();
-        private final List<Point> blockedPoints = new ArrayList<>();
-        private final Predicate<Point> filterBlocked = p -> !blockedPoints.contains(p);
-        private final Predicate<Point> filterExplored = p -> !validPoints.contains(p);
-        private final List<Point> UNIT_MOVES = Arrays.asList(Point.NORTH, Point.SOUTH, Point.WEST, Point.EAST);
-        private boolean foundOxygen = false;
+        private static final List<List<Integer>> POSS = Arrays.asList(
+                Arrays.asList(0, -1, 1), // north
+                Arrays.asList(0, 1, 2), //south
+                Arrays.asList(-1, 0, 3), // west
+                Arrays.asList(1, 0, 4) //east
+        );
+        private final Stack<Point> pointsToCheck = new Stack<>();
+        private final Set<Point> visitedPoints = new HashSet<>();
+        private final DrawMaze maze = new DrawMaze();
 
-        void process(Point currentPos) {
-            currentPos.setColor(Color.CYAN);
-            validPoints.add(currentPos);
-            DrawMaze maze = new DrawMaze();
+        Navigator(final Point start) {
+            visitedPoints.add(start);
+        }
 
-            while (!foundOxygen) {
-                final Long input = prepareInput(currentPos);
-                final Long output = computer.calcOutput(input);
-//                System.out.println(currentPos + " input: " + input + " output: " + output);
-                currentPos = parseOutput(currentPos, input, output);
-                final ArrayList<Point> points = new ArrayList<>(validPoints);
-                points.addAll(blockedPoints);
-                maze.setContent(points);
-                try {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+        @SneakyThrows
+        void process(final Point head) {
+            updateStack(head);
+            while (!pointsToCheck.empty()) {
+                final Point check = pointsToCheck.pop();
+                final IntcodeComputer comp = new IntcodeComputer(INPUT);
+                int output = -1;
+                for (Integer in : check.getInputs()) {
+                    output = comp.calcOutput(in);
+                }
+                check.setOutput(output);
+                visitedPoints.add(check);
+                maze.setContent(visitedPoints);
+                TimeUnit.MILLISECONDS.sleep(10);
+                if (output > 0) {
+                    process(check);
                 }
             }
 
         }
 
-        private Point parseOutput(Point currentPos, Long input, Long output) {
-            if (output == 0L) { // hit the wall, position unchanged add to blocked
-                final Point dir = UNIT_MOVES.stream()
-                        .filter(p -> p.getInput() == input)
-                        .findFirst().orElse(Point.ZERO);
-                final Point move = currentPos.move(dir);
-                move.setColor(Color.black);
-                blockedPoints.add(move);
-                return currentPos;
-            } else if (output == 1L) { // it is a valid move
-                final Point dir = UNIT_MOVES.stream()
-                        .filter(p -> p.getInput() == input)
-                        .findFirst().orElse(Point.ZERO);
-                final Point newcurr = currentPos.move(dir);
-                newcurr.setColor(Color.WHITE);
-                validPoints.add(newcurr);
-                return newcurr;
-            } else if (output == 2L) { // we found oxygen, stop for now.
-                foundOxygen = true;
-                final Point dir = UNIT_MOVES.stream()
-                        .filter(p -> p.getInput() == input)
-                        .findFirst().orElse(Point.ZERO);
-                final Point newcurr = currentPos.move(dir);
-                newcurr.setColor(Color.RED);
-                validPoints.add(newcurr);
-                return newcurr;
-            } else {
-                System.out.println("something went wrong with output: " + output);
-                foundOxygen = true; // we want to stop to investigate
-                return Point.ZERO;
-            }
-        }
-
-        Long prepareInput(final Point currentPos) {
-            final List<Point> possibilities = possibleMoves(currentPos);
-            // pass one - aggressive
-            final Optional<Point> firstPass = possibilities
-                    .stream()
-                    .filter(filterBlocked)
-                    .filter(filterExplored)
-                    .findFirst();
-            if (firstPass.isPresent()) {
-                return inputFromPoints(currentPos, firstPass.get());
-            }
-            // if the road is traversed in all direction but we are not close to answer.
-            // then we need to re-traverse the road to explore new possibilities.
-            // pass two - greedy
-            // somthing needs to be done here. we get more than one possibility in second pass. How do we choose in that case?
-            final Optional<Point> secondPass = possibilities.stream()
-                    .filter(filterBlocked)
-                    .findFirst();
-            final List<Point> secondPasses = possibilities.stream()
-                    .filter(filterBlocked)
-                    .collect(toList());
-            // lets get indexes on when this was added in valid move, will this help?
-            final OptionalInt min = secondPasses.stream()
-                    .mapToInt(validPoints::indexOf)
-                    .min();
-            return inputFromPoints(currentPos, validPoints.get(min.getAsInt()));
-//            if (secondPass.isPresent()) {
-//                return inputFromPoints(currentPos, secondPass.get());
-//            }
-            // if I reach here then something is really wrong!
-//            System.out.println("ERROR: 11111");
-//            return 0L;
-        }
-
-        List<Point> possibleMoves(final Point startingPoint) {
-            return UNIT_MOVES.stream()
-                    .map(startingPoint::move)
-                    .collect(toList());
-        }
-
-        Long inputFromPoints(final Point startPos, final Point nextPos) {
-            final Point diff = startPos.diff(nextPos);
-            final Optional<Point> p = UNIT_MOVES.stream()
-                    .filter(diff::equals)
-                    .findFirst();
-            if (p.isPresent()) {
-                return p.get().getInput();
-            }
-            System.out.println("SOMETHING went wrong...");
-            return 0L;
-        }
-
         int shortestPath() {
-            final Node node = prepareTree(validPoints, Point.ZERO, 0);
-            final Point end = validPoints.get(validPoints.size() - 1);
-            return getDepth(node, end, 0);
+            return visitedPoints.stream()
+                    .filter(p -> p.getOutput() == 2)
+                    .map(Point::getInputs)
+                    .mapToInt(List::size)
+                    .findFirst().orElse(-1);
         }
 
-        int getDepth(final Node node, final Point pointToFind, final int depth) {
-            if (node.getHead().equals(pointToFind)) {
-                return depth;
-            } else {
-                return node.getChildren().stream()
-                        .mapToInt(n -> getDepth(n, pointToFind, depth + 1))
-                        .filter(num -> num > 0)
-                        .min().orElse(-1);
-            }
+
+        void updateStack(final Point head) {
+            POSS.stream()
+                    .map(list -> head.move(list.get(0), list.get(1), list.get(2)))
+                    .filter(p -> !visitedPoints.contains(p))
+                    .forEach(pointsToCheck::push);
         }
 
-        Node prepareTree(List<Point> series, final Point head, final int depth) {
-            final Node point = new Node(head);
-            point.setDepth(depth);
-            final List<Point> possible = possibleMoves(head).stream()
-                    .filter(series::contains)
-                    .collect(toList());
-            final List<Point> remaining = series.stream()
-                    .filter(p -> !head.equals(p))
-                    .filter(p -> !possible.contains(p))
-                    .collect(toList());
-            final List<Node> children = possible.stream()
-                    .map(p -> prepareTree(remaining, p, depth + 1))
-                    .collect(toList());
-            point.setChildren(children);
-            return point;
-        }
 
     }
 
-    @Data
-    private static class Node {
-        final Point head;
-        int depth;
-        List<Node> children = new ArrayList<>();
-    }
 
     @Data
     @Builder
     static class Point {
-        final long x;
-        final long y;
+        final int x;
+        final int y;
         @EqualsAndHashCode.Exclude
         @ToString.Exclude
-        long input;
+        final List<Integer> inputs;
         @EqualsAndHashCode.Exclude
         @ToString.Exclude
         Color color;
-        static final Point NORTH = Point.builder().x(0).y(-1).input(1).build();
-        static final Point SOUTH = Point.builder().x(0).y(1).input(2).build();
-        static final Point WEST = Point.builder().x(-1).y(0).input(3).build();
-        static final Point EAST = Point.builder().x(1).y(0).input(4).build();
-        static final Point ZERO = Point.builder().x(0).y(0).build();
+        @EqualsAndHashCode.Exclude
+        @ToString.Exclude
+        int output;
+        static final Point ZERO = Point.builder().x(0).y(0).inputs(new ArrayList<>()).color(Color.CYAN).build();
 
-        Point move(final Point directionPoint) {
-            return Point.builder()
-                    .x(this.x + directionPoint.x)
-                    .y(this.y + directionPoint.y)
-                    .build();
+        Point move(final int x, final int y, final int input) {
+            List<Integer> dest = new ArrayList<>(this.inputs);
+            dest.add(input);
+            return Point.builder().x(this.x + x).y(this.y + y).inputs(dest).build();
         }
 
-        Point diff(final Point nextPoint) {
-            return Point.builder()
-                    .x(nextPoint.x - this.x)
-                    .y(nextPoint.y - this.y)
-                    .build();
+        void setOutput(int output) {
+            this.output = output;
+            switch (output) {
+                case 0:
+                    this.color = Color.BLACK;
+                    break;
+                case 1:
+                    this.color = Color.YELLOW;
+                    break;
+                case 2:
+                    this.color = Color.RED;
+                    break;
+                default:
+                    System.out.println("something went wrong: " + this);
+            }
         }
     }
 
@@ -221,7 +119,7 @@ public class Day15 {
     private static class IntcodeComputer {
         private final List<Long> series;
 
-        public IntcodeComputer(final String input) {
+        IntcodeComputer(final String input) {
             series = Arrays.stream(input.split(","))
                     .map(Long::parseLong)
                     .collect(toList());
@@ -232,7 +130,7 @@ public class Day15 {
         boolean halted = false;
         private Long input;
 
-        Long calcOutput(final Long input) {
+        Integer calcOutput(final Integer input) {
             while (!halted) {
                 // understand the opcode
                 final String opRaw = "0000" + series.get(pointer);
@@ -252,13 +150,13 @@ public class Day15 {
                         pointer += 4;
                         break;
                     case 3: // input
-                        setVal(series, pointer + 1, point1, input);
+                        setVal(series, pointer + 1, point1, Long.valueOf(input));
                         pointer += 2;
                         break;
                     case 4: // output
                         final Long val = getVal(series, pointer + 1, point1);
                         pointer += 2;
-                        return val;
+                        return Math.toIntExact(val);
                     case 5: // jump if true
                         if (getVal(series, pointer + 1, point1) != 0) {
                             pointer = Math.toIntExact(getVal(series, pointer + 2, point2));
@@ -293,7 +191,7 @@ public class Day15 {
                 }
             }
             System.out.println("This point should not be reached!");
-            return 0L;
+            return 0;
         }
 
         private Long getVal(final List<Long> series, final int pos, final String mode) {
