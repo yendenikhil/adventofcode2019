@@ -54,7 +54,7 @@ public class Day15 {
                 check.setOutput(output);
                 visitedPoints.add(check);
                 maze.setContent(visitedPoints);
-                TimeUnit.MILLISECONDS.sleep(10);
+                TimeUnit.MILLISECONDS.sleep(50);
                 if (output > 0) {
                     partA(check);
                 }
