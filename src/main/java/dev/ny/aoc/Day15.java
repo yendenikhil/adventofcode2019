@@ -12,11 +12,11 @@ import static java.util.stream.Collectors.toList;
 
 public class Day15 {
     public static void main(String[] args) {
-        final Navigator nav = new Navigator(Point.ZERO);
-        nav.partA(Point.ZERO);
-        final Point oxygenPoint = nav.getVisitedPoints().stream()
+        final Navigator nav = new Navigator(Point15.ZERO);
+        nav.partA(Point15.ZERO);
+        final Point15 oxygenPoint = nav.getVisitedPoints().stream()
                 .filter(p -> p.getOutput() == 2)
-                .findFirst().orElse(Point.ZERO);
+                .findFirst().orElse(Point15.ZERO);
         System.out.println("part 1: " + oxygenPoint.getInputs().size());
         final int minTime = nav.partB(oxygenPoint);
         System.out.println("part 2: " + minTime);
@@ -33,19 +33,19 @@ public class Day15 {
                 Arrays.asList(-1, 0, 3), // west
                 Arrays.asList(1, 0, 4) //east
         );
-        private final Stack<Point> pointsToCheck = new Stack<>();
-        private final Set<Point> visitedPoints = new HashSet<>();
+        private final Stack<Point15> pointsToCheck = new Stack<>();
+        private final Set<Point15> visitedPoints = new HashSet<>();
         private final DrawMaze maze = new DrawMaze();
 
-        Navigator(final Point start) {
+        Navigator(final Point15 start) {
             visitedPoints.add(start);
         }
 
         @SneakyThrows
-        void partA(final Point head) {
+        void partA(final Point15 head) {
             updateStack(head);
             while (!pointsToCheck.empty()) {
-                final Point check = pointsToCheck.pop();
+                final Point15 check = pointsToCheck.pop();
                 final IntcodeComputer comp = new IntcodeComputer(INPUT);
                 int output = -1;
                 for (Integer in : check.getInputs()) {
@@ -61,13 +61,13 @@ public class Day15 {
             }
         }
 
-        int partB(final Point start) {
-            Set<Point> coverage = new HashSet<>();
+        int partB(final Point15 start) {
+            Set<Point15> coverage = new HashSet<>();
             coverage.add(start);
             int counter = 0;
-            final Set<Point> freePlaces = visitedPoints.stream().filter(p -> p.getOutput() == 1).collect(Collectors.toSet());
+            final Set<Point15> freePlaces = visitedPoints.stream().filter(p -> p.getOutput() == 1).collect(Collectors.toSet());
             while (coverage.size() <= freePlaces.size()) {
-                final Set<Point> possible = coverage.stream()
+                final Set<Point15> possible = coverage.stream()
                         .map(p -> POSS.stream()
                                 .map(list -> p.move(list.get(0), list.get(1), list.get(2)))
                                 .filter(freePlaces::contains)
@@ -80,13 +80,13 @@ public class Day15 {
             return counter;
         }
 
-        void updateStack(final Point head) {
+        void updateStack(final Point15 head) {
             POSS.stream()
                     .map(list -> head.move(list.get(0), list.get(1), list.get(2)))
                     .filter(p -> {
-                                final Optional<Point> matchedOptional = visitedPoints.stream().filter(p::equals).findFirst();
+                                final Optional<Point15> matchedOptional = visitedPoints.stream().filter(p::equals).findFirst();
                                 if (matchedOptional.isPresent()) {
-                                    final Point existing = matchedOptional.get();
+                                    final Point15 existing = matchedOptional.get();
                                     return existing.getInputs().size() > p.getInputs().size();
                                 } else {
                                     return true;
@@ -103,7 +103,7 @@ public class Day15 {
 
     @Data
     @Builder
-    static class Point {
+    static class Point15 {
         final int x;
         final int y;
         @EqualsAndHashCode.Exclude
@@ -115,12 +115,12 @@ public class Day15 {
         @EqualsAndHashCode.Exclude
         @ToString.Exclude
         int output;
-        static final Point ZERO = Point.builder().x(0).y(0).inputs(new ArrayList<>()).color(Color.CYAN).build();
+        static final Point15 ZERO = Point15.builder().x(0).y(0).inputs(new ArrayList<>()).color(Color.CYAN).build();
 
-        Point move(final int x, final int y, final int input) {
+        Point15 move(final int x, final int y, final int input) {
             List<Integer> dest = new ArrayList<>(this.inputs);
             dest.add(input);
-            return Point.builder().x(this.x + x).y(this.y + y).inputs(dest).build();
+            return Point15.builder().x(this.x + x).y(this.y + y).inputs(dest).build();
         }
 
         void setOutput(int output) {

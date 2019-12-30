@@ -2,16 +2,20 @@ package dev.ny.aoc;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class Day18 {
     public static void main(String[] args) {
-        final Navigator18 nav = new Navigator18(INPUT);
+        final Navigator nav = new Navigator(INPUT);
+        final Set<Edge> edges = nav.definePaths();
+        final Map<String, List<String>> collect = edges.stream().collect(Collectors.groupingBy(e -> e.getHead().getLabel(), Collectors.mapping(e -> e.getTail().getLabel(), Collectors.toList())));
+        System.out.println(collect);
+
+//        edges.forEach(System.out::println);
+//        System.out.println(nav.shortestPath(edges));
+//        edges.forEach(System.out::println);
     }
 
     private static final String INPUT = "########################\n" +
@@ -23,94 +27,137 @@ public class Day18 {
 }
 
 @Data
-class Point18 {
+class Point implements Comparable<Point> {
     final int x;
     final int y;
     @EqualsAndHashCode.Exclude
-    int distance = 0;
-    @EqualsAndHashCode.Exclude
-    @ToString.Exclude
     String label;
+    @EqualsAndHashCode.Exclude
+    int distance = Integer.MAX_VALUE;
+    @EqualsAndHashCode.Exclude
+    String predecessor;
 
-    private Point18 next(final int dx, final int dy, final int dDistance) {
-        final Point18 point18 = new Point18(this.x + dx, this.y + dy);
-        point18.setDistance(this.distance + dDistance);
-        return point18;
+
+    private Point next(final int dx, final int dy) {
+        return new Point(this.x + dx, this.y + dy);
     }
 
-    List<Point18> neighbours(final int distance) {
-        List<Point18> list = new ArrayList<>(4);
-        list.add(this.next(1, 0, distance));
-        list.add(this.next(-1, 0, distance));
-        list.add(this.next(0, 1, distance));
-        list.add(this.next(0, -1, distance));
+    List<Point> neighbours() {
+        List<Point> list = new ArrayList<>(4);
+        list.add(this.next(1, 0));
+        list.add(this.next(-1, 0));
+        list.add(this.next(0, 1));
+        list.add(this.next(0, -1));
         return list;
     }
 
     @Override
-    protected Point18 clone() {
-        return new Point18(this.x, this.y);
+    public int compareTo(Point o) {
+        return Integer.compare(this.distance, o.distance);
     }
 }
 
-class Navigator18 {
-    private Point18 start;
-    private final List<Point18> walls = new ArrayList<>();
-    private final List<Point18> coords = new ArrayList<>();
-    private final Graph<Point18> graph = new Graph<>();
+@Data
+class Edge {
+    final Point head;
+    final Point tail;
+    int distance;
+}
 
-    public Navigator18(final String input) {
+class Navigator {
+    private final List<Point> walls = new ArrayList<>();
+    private final List<Point> coords = new ArrayList<>();
+
+    Navigator(final String input) {
         final String[] lines = input.split("\n");
         for (int i = 0; i < lines.length; i++) {
             final char[] chars = lines[i].toCharArray();
             for (int j = 0; j < chars.length; j++) {
                 final String s = String.valueOf(chars[j]);
                 if (s.equals("#")) {
-                    walls.add(new Point18(j, i));
+                    walls.add(new Point(j, i));
                 } else if (s.matches("^[a-zA-Z]$")) {
-                    final Point18 p = new Point18(j, i);
+                    final Point p = new Point(j, i);
                     p.setLabel(s);
                     coords.add(p);
                 } else if (s.equals("@")) {
-                    start = new Point18(j, i);
+                    final Point p = new Point(j, i);
+                    p.setLabel("@");
+                    p.setDistance(0);
+                    coords.add(0, p);
                 }
             }
         }
-        buildGraph();
-        System.out.println(graph);
     }
 
-    void buildGraph() {
-        graph.addVertex(start);
-        coords.forEach(graph::addVertex);
-        Queue<Point18> queue = new ArrayDeque<>();
-        queue.add(start);
-        queue.addAll(coords);
-        while (!queue.isEmpty()) {
-            final Point18 head = queue.remove();
-            final List<Point18> connections = getConnections(head, new ArrayList<>(queue));
-            connections.forEach(c -> graph.addEdge(head, c));
-        }
-    }
-
-    List<Point18> getConnections(final Point18 head, final List<Point18> possibleLinks) {
-        List<Point18> links = new ArrayList<>();
-        Queue<Point18> buffer = new ArrayDeque<>();
-        buffer.add(head.clone());
-        List<Point18> visited = new ArrayList<>();
-        while (!buffer.isEmpty()) {
-            final Point18 e = buffer.remove();
-            visited.add(e);
-            if (possibleLinks.contains(e)) {
-                links.add(e);
-                continue;
+    Set<Edge> definePaths() {
+        final Set<Edge> paths = new HashSet<>();
+        final Queue<Point> points = new ArrayDeque<>(coords.size());
+        final List<Point> donePoints = new ArrayList<>();
+        points.add(coords.get(0));
+        while (!points.isEmpty()) {
+            final Point head = points.remove();
+            final List<Point> visited = new ArrayList<>();
+            visited.add(head);
+            final Queue<Point> checkList = new ArrayDeque<>();
+            checkList.add(head);
+            donePoints.add(head);
+            final Map<Point, Integer> distanceMap = new HashMap<>();
+            distanceMap.put(head, 0);
+            while (!checkList.isEmpty()) {
+                Point check = checkList.remove();
+                visited.add(check);
+                if (coords.contains(check) && !donePoints.contains(check)) {
+                    final Point source = coords.get(coords.indexOf(head));
+                    final Point dest = coords.get(coords.indexOf(check));
+                    final Edge e1 = new Edge(source, dest);
+                    final Edge e2 = new Edge(dest, source);
+                    e1.setDistance(distanceMap.get(check));
+                    e2.setDistance(distanceMap.get(check));
+                    paths.add(e1);
+                    paths.add(e2);
+                    points.add(check);
+                    continue;
+                }
+                final List<Point> neighbours = check.neighbours();
+                neighbours.removeIf(walls::contains);
+                neighbours.removeIf(visited::contains);
+                neighbours.forEach(p -> distanceMap.put(p, distanceMap.get(check) + 1));
+                checkList.addAll(neighbours);
             }
-            final List<Point18> neighbours = e.neighbours(1);
-            neighbours.removeIf(visited::contains);
-            neighbours.removeIf(walls::contains);
-            buffer.addAll(neighbours);
         }
-        return links;
+        return paths;
+    }
+
+    int shortestPath(final Set<Edge> edges) {
+        List<Point> visited = new ArrayList<>();
+        List<Point> unvisited = new ArrayList<>(coords);
+        // starting point
+        Point head = unvisited.remove(0);
+        while (!unvisited.isEmpty()) {
+            visited.add(head);
+            Point finalHead = head;
+            final Set<Edge> adjucentEdges = edges.stream().filter(e -> e.getHead().equals(finalHead)).collect(Collectors.toSet());
+            for (Edge e : adjucentEdges) {
+                final Point tail = e.getTail();
+                // if there is a shorter path then update the Point.
+                final int distance = head.getDistance() + e.getDistance();
+                if (tail.getDistance() > distance) {
+                    tail.setDistance(distance);
+                    tail.setPredecessor(head.getLabel());
+                }
+            }
+            if (!unvisited.isEmpty()) {
+                final Point possibleHead = adjucentEdges.stream()
+                        .map(Edge::getTail)
+                        .filter(p -> !visited.contains(p))
+                        .sorted(Comparator.comparing(Point::getDistance))
+                        .findFirst()
+                        .orElseThrow();
+                head = unvisited.remove(unvisited.indexOf(possibleHead));
+            }
+        }
+        return 0;
     }
 }
 
