@@ -5,11 +5,11 @@ import lombok.EqualsAndHashCode;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.stream.Collectors;
 
 public class Day18 {
     public static void main(String[] args) {
@@ -17,11 +17,15 @@ public class Day18 {
         nav.solveByBruteForce();
     }
 
-    private static final String INPUT = "########################\n" +
-            "#f.D.E.e.C.b.A.@.a.B.c.#\n" +
-            "######################.#\n" +
-            "#d.....................#\n" +
-            "########################";
+    private static final String INPUT = "#################\n" +
+            "#i.G..c...e..H.p#\n" +
+            "########.########\n" +
+            "#j.A..b...f..D.o#\n" +
+            "########@########\n" +
+            "#k.E..a...g..B.n#\n" +
+            "########.########\n" +
+            "#l.F..d...h..C.m#\n" +
+            "#################";
 
 }
 
@@ -31,9 +35,11 @@ class Point {
     final int y;
     @EqualsAndHashCode.Exclude
     String label;
+
     private Point next(final int dx, final int dy) {
         return new Point(this.x + dx, this.y + dy);
     }
+
     List<Point> neighbours() {
         List<Point> list = new ArrayList<>(4);
         list.add(this.next(1, 0));
@@ -80,24 +86,49 @@ class Navigator {
 
     // starting with brute force
     void solveByBruteForce() {
-        Point start = coords.get(0);
-        List<Point> visited = new ArrayList<>();
-        visited.add(start);
-        while (visited.size() < coords.size()) {
-            System.out.println("Start: " + start);
-            final List<Edge> possibles = findAdjacent(start, visited);
-            possibles.sort(Comparator.comparing(Edge::getDistance));
-            for (Edge edge : possibles) {
-                final Point tail = edge.getTail();
-                if (isValidPoint(tail, visited)) {
-                    start = tail;
-                    visited.add(tail);
-                    break;
+        // Get first possible list of edges as starting condition for the building stack / queue
+        final Queue<List<Edge>> queue = getNextPossible(new ArrayList<>());
+        int minDistance = Integer.MAX_VALUE;
+        while (!queue.isEmpty()) {
+            final List<Edge> partPaths = queue.remove();
+            // this condition checks whether we have all the paths to reach to all coords.
+            if (partPaths.size() == coords.size() - 1) {
+                final String finalPath = partPaths.stream().map(e -> e.getHead().getLabel() + " -> " + e.getTail().getLabel()).collect(Collectors.joining(", "));
+                System.out.println(finalPath);
+                final int distance = partPaths.stream().mapToInt(Edge::getDistance).sum();
+                System.out.println(distance);
+                if (distance < minDistance) {
+                    minDistance = distance;
                 }
+
+            } else {
+                getNextPossible(partPaths).stream().filter(l -> !queue.contains(l)).forEach(queue::add);
+            }
+        }
+        System.out.println("Minimum distance: " + minDistance);
+    }
+
+    Queue<List<Edge>> getNextPossible(final List<Edge> partPaths) {
+        Queue<List<Edge>> queue = new ArrayDeque<>();
+        final List<Point> visited = partPaths.stream().map(Edge::getHead).collect(Collectors.toList());
+        Point start = coords.get(0);
+        if (!partPaths.isEmpty()) {
+            start = partPaths.get(partPaths.size() - 1).getTail();
+        }
+        visited.add(start);
+        final List<Edge> possibles = findAdjacent(start, visited);
+        for (Edge edge : possibles) {
+            final Point tail = edge.getTail();
+            if (isValidPoint(tail, visited)) {
+                final List<Edge> updatedPath = new ArrayList<>(partPaths);
+                updatedPath.add(edge);
+                queue.add(updatedPath);
             }
         }
 
+        return queue;
     }
+
 
     List<Edge> findAdjacent(final Point zero, final List<Point> visited) {
         List<Edge> paths = new ArrayList<>();
@@ -112,7 +143,7 @@ class Navigator {
                 final Edge edge = new Edge(zero, coords.get(coords.indexOf(check)));
                 edge.setDistance(distanceMap.get(check));
                 paths.add(edge);
-                System.out.println(edge);
+//                System.out.println(edge);
                 // if I want just immediate links and not all the links then if the point is part of coords then do not follow to get its neighbours.
                 continue;
             }
