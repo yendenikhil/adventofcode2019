@@ -3,19 +3,18 @@ package dev.ny.aoc;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 
 public class Day18 {
     public static void main(String[] args) {
         final Navigator nav = new Navigator(INPUT);
-        final Set<Edge> edges = nav.definePaths();
-        final Map<String, List<String>> collect = edges.stream().collect(Collectors.groupingBy(e -> e.getHead().getLabel(), Collectors.mapping(e -> e.getTail().getLabel(), Collectors.toList())));
-        System.out.println(collect);
-
-//        edges.forEach(System.out::println);
-//        System.out.println(nav.shortestPath(edges));
-//        edges.forEach(System.out::println);
+        nav.solveByBruteForce();
     }
 
     private static final String INPUT = "########################\n" +
@@ -27,21 +26,14 @@ public class Day18 {
 }
 
 @Data
-class Point implements Comparable<Point> {
+class Point {
     final int x;
     final int y;
     @EqualsAndHashCode.Exclude
     String label;
-    @EqualsAndHashCode.Exclude
-    int distance = Integer.MAX_VALUE;
-    @EqualsAndHashCode.Exclude
-    String predecessor;
-
-
     private Point next(final int dx, final int dy) {
         return new Point(this.x + dx, this.y + dy);
     }
-
     List<Point> neighbours() {
         List<Point> list = new ArrayList<>(4);
         list.add(this.next(1, 0));
@@ -51,10 +43,7 @@ class Point implements Comparable<Point> {
         return list;
     }
 
-    @Override
-    public int compareTo(Point o) {
-        return Integer.compare(this.distance, o.distance);
-    }
+
 }
 
 @Data
@@ -83,81 +72,69 @@ class Navigator {
                 } else if (s.equals("@")) {
                     final Point p = new Point(j, i);
                     p.setLabel("@");
-                    p.setDistance(0);
                     coords.add(0, p);
                 }
             }
         }
     }
 
-    Set<Edge> definePaths() {
-        final Set<Edge> paths = new HashSet<>();
-        final Queue<Point> points = new ArrayDeque<>(coords.size());
-        final List<Point> donePoints = new ArrayList<>();
-        points.add(coords.get(0));
-        while (!points.isEmpty()) {
-            final Point head = points.remove();
-            final List<Point> visited = new ArrayList<>();
-            visited.add(head);
-            final Queue<Point> checkList = new ArrayDeque<>();
-            checkList.add(head);
-            donePoints.add(head);
-            final Map<Point, Integer> distanceMap = new HashMap<>();
-            distanceMap.put(head, 0);
-            while (!checkList.isEmpty()) {
-                Point check = checkList.remove();
-                visited.add(check);
-                if (coords.contains(check) && !donePoints.contains(check)) {
-                    final Point source = coords.get(coords.indexOf(head));
-                    final Point dest = coords.get(coords.indexOf(check));
-                    final Edge e1 = new Edge(source, dest);
-                    final Edge e2 = new Edge(dest, source);
-                    e1.setDistance(distanceMap.get(check));
-                    e2.setDistance(distanceMap.get(check));
-                    paths.add(e1);
-                    paths.add(e2);
-                    points.add(check);
-                    continue;
+    // starting with brute force
+    void solveByBruteForce() {
+        Point start = coords.get(0);
+        List<Point> visited = new ArrayList<>();
+        visited.add(start);
+        while (visited.size() < coords.size()) {
+            System.out.println("Start: " + start);
+            final List<Edge> possibles = findAdjacent(start, visited);
+            possibles.sort(Comparator.comparing(Edge::getDistance));
+            for (Edge edge : possibles) {
+                final Point tail = edge.getTail();
+                if (isValidPoint(tail, visited)) {
+                    start = tail;
+                    visited.add(tail);
+                    break;
                 }
-                final List<Point> neighbours = check.neighbours();
-                neighbours.removeIf(walls::contains);
-                neighbours.removeIf(visited::contains);
-                neighbours.forEach(p -> distanceMap.put(p, distanceMap.get(check) + 1));
-                checkList.addAll(neighbours);
             }
+        }
+
+    }
+
+    List<Edge> findAdjacent(final Point zero, final List<Point> visited) {
+        List<Edge> paths = new ArrayList<>();
+        Map<Point, Integer> distanceMap = new HashMap<>();
+        distanceMap.put(zero, 0);
+        // we will do BFS to get shortest distance from zero in case there are more than one path to take
+        final Queue<Point> interestingPoints = new ArrayDeque<>();
+        interestingPoints.add(zero);
+        while (!interestingPoints.isEmpty()) {
+            final Point check = interestingPoints.remove();
+            if (coords.contains(check) && !zero.equals(check) && !visited.contains(check)) {
+                final Edge edge = new Edge(zero, coords.get(coords.indexOf(check)));
+                edge.setDistance(distanceMap.get(check));
+                paths.add(edge);
+                System.out.println(edge);
+                // if I want just immediate links and not all the links then if the point is part of coords then do not follow to get its neighbours.
+                continue;
+            }
+            final List<Point> neighbours = check.neighbours();
+            neighbours.removeIf(walls::contains); // if it is wall ignore
+            neighbours.removeIf(distanceMap::containsKey); // if it is traversed ignore
+
+            interestingPoints.addAll(neighbours); // check remaining points
+            neighbours.forEach(e -> distanceMap.put(e, distanceMap.get(check) + 1)); // as we calculated neighbours the distance is incremented by one.
         }
         return paths;
     }
 
-    int shortestPath(final Set<Edge> edges) {
-        List<Point> visited = new ArrayList<>();
-        List<Point> unvisited = new ArrayList<>(coords);
-        // starting point
-        Point head = unvisited.remove(0);
-        while (!unvisited.isEmpty()) {
-            visited.add(head);
-            Point finalHead = head;
-            final Set<Edge> adjucentEdges = edges.stream().filter(e -> e.getHead().equals(finalHead)).collect(Collectors.toSet());
-            for (Edge e : adjucentEdges) {
-                final Point tail = e.getTail();
-                // if there is a shorter path then update the Point.
-                final int distance = head.getDistance() + e.getDistance();
-                if (tail.getDistance() > distance) {
-                    tail.setDistance(distance);
-                    tail.setPredecessor(head.getLabel());
-                }
-            }
-            if (!unvisited.isEmpty()) {
-                final Point possibleHead = adjucentEdges.stream()
-                        .map(Edge::getTail)
-                        .filter(p -> !visited.contains(p))
-                        .sorted(Comparator.comparing(Point::getDistance))
-                        .findFirst()
-                        .orElseThrow();
-                head = unvisited.remove(unvisited.indexOf(possibleHead));
-            }
+    boolean isValidPoint(final Point point, final List<Point> visited) {
+        if (visited.stream().anyMatch(point::equals)) {
+            return false;
         }
-        return 0;
+        final String label = point.getLabel();
+        if (label.matches("[A-Z]")) {
+            return visited.stream().map(Point::getLabel).anyMatch(l -> l.equals(label.toLowerCase()));
+        }
+        return true;
     }
 }
 
