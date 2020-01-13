@@ -3,29 +3,96 @@ package dev.ny.aoc;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Day18 {
     public static void main(String[] args) {
         final Navigator nav = new Navigator(INPUT);
-        nav.solveByBruteForce();
+        nav.solve();
     }
 
-    private static final String INPUT = "#################\n" +
-            "#i.G..c...e..H.p#\n" +
-            "########.########\n" +
-            "#j.A..b...f..D.o#\n" +
-            "########@########\n" +
-            "#k.E..a...g..B.n#\n" +
-            "########.########\n" +
-            "#l.F..d...h..C.m#\n" +
-            "#################";
+    private static final String INPUT = "#################################################################################\n" +
+            "#.#..a....#...#..........y..#.#.........#.I...#...#.....#.............#.......#.#\n" +
+            "#.#.###.###.#.#P#########.#.#S#.#######.#.###.#.#.###.#.###.#########.#.#####.#.#\n" +
+            "#.#...#.#...#...#.......#.#.#.#...#z....#...#.#.#.#...#...#.#...#.....#.#.......#\n" +
+            "#.###.#.#.#######.#######.#.#.###.#.#####.#.#.#.#.#.#####.#.#.#.#.#####.#######.#\n" +
+            "#q..#.#...#.#.....#.....#.#.#.....#.....#.#.#.#.#.#.....#..c#.#.#.......#.....#.#\n" +
+            "#.###.#####.#.#.#.#.###.#.#.###########.#.#.#.#.#.#####.#####.#.#########.###.#.#\n" +
+            "#.#...#.....#.#.#.#...#...#......b......#.#.#...#...#...#...#.#.....#.....#.#.#.#\n" +
+            "#.#.###.#####.#.#####.#####.#######.#####.#.#######.#.#.#.#.#.#####.#.#####.#.###\n" +
+            "#.#...#.......#.....#.#.....#.....#.#l..#.#...#.D.....#.#.#...#...#...#.....#...#\n" +
+            "#.###.###.#######.#.#.#######.###.###.#.#.###.###.#####.#.#######.#####.###.###.#\n" +
+            "#...#...#...#...#.#.#.......#...#.....#.#...#...#.#...#n#.#.......#....r..#.#...#\n" +
+            "#.#.###.###.#.#.###.#######.###.#######.#######.#.#.#.#.#.#.#####.#.#######.#.###\n" +
+            "#.#...#...#.#.#...........#...#.#.#...#.#.......#.#.#.#.#...#...#.#.....#...#...#\n" +
+            "###.#####.###.###########.#.###.#.#.#.#.#.###.#####.#.#.#####.###.#######.#.###A#\n" +
+            "#...#.....#...#...........#.#...#.#v#...#.#...#.....#.#...#...............#.#...#\n" +
+            "#.###.#####.###.#####.#####.#.###.#.#####.#####.#####.#####.#################.###\n" +
+            "#.....#.....#...#.G.#.#...#.......#.#...#...#.....#...#.....#.........#.....#.#.#\n" +
+            "#.#####.#####.###.#.###.#.#######.#.###.#.#.#.#####.#.#.#####.#######.#.###.#.#.#\n" +
+            "#.R...#.#.....#...#.#x..#...F.#.#.#...#.#.#...#...#.#.#.#...#.#.#...#.#...#...#.#\n" +
+            "#####.#.#######.###.#.#######.#.#.###.#.#.#####.#.#.#.#.#.#.#.#.#.#.#.###.#####.#\n" +
+            "#.#...#.........#...#.#.....#.#...#...#.#.#...#.#...#.#...#.#.#...#.#.....#...#.#\n" +
+            "#.#.#########.###.#.###.###.#.#####.###.#.#.#.#.###.#######.#######.#######.#.#.#\n" +
+            "#...#.......#.#...#.....#.#.#.......#...#.#.#.#...#.#.....#.......#.#.....T.#...#\n" +
+            "#.#####.###.#.#.#########.#.#########.###.#.#.###.#.#.###.#######.#.#.#.#######.#\n" +
+            "#...M.#.#...#.#.....#.....#...#.........#.#.#.....#.#.#.#.....#.#.#...#.#.....#.#\n" +
+            "#####.#.###.#.#####.###.#.###.#####.###.#.#.#########.#.###.#.#.#.#.###.#.###.#.#\n" +
+            "#...#.#...#.#.....#...#.#...#.....#...#.#.#.......#...#.#...#...#.#.#...#...#.#.#\n" +
+            "#.###.###.#.#########.#.#########.#####.#.#######.#.###.#.#######.#.#.#####.#.#.#\n" +
+            "#...#.....#...........#.....#...#.......#.....#.#...#...#...#.....#.#.......#.#.#\n" +
+            "#K#.###################.###.#.#.#######.#####.#.#######.###.#.#####.#########.#.#\n" +
+            "#.#...........#.....#...#.#.#.#.......#.#.#...#...#.......#...#.............#.#.#\n" +
+            "#.#.###.#######.#.###.###.#.#.#####.###.#.#.###.###.#.###.#####.#############.###\n" +
+            "#.#.#...#.......#.....#...#...#...#...#.#...#.......#...#.....#.....#.......#...#\n" +
+            "#.#.#.###.#############.#.#####.#.###.#.#.#########.###.#######.#####.#####.###.#\n" +
+            "#.#.#...#.....#...H.....#.......#...#...#.#.......#...#.....#...#.....#...#...#.#\n" +
+            "#.#.###.#####.#######.#########.###.#####.#.#####.###.#####.#.###.#####.#.###.#.#\n" +
+            "#.#.#...#.....#.....#.......#...#...#...#...#.....#.......#.....#.....#.#...#.#.#\n" +
+            "#.#.#####.#####.###.#########.###.#####.#####.#######################.#.#.###.#.#\n" +
+            "#.#..........u..#.............#o......................................#.#....k..#\n" +
+            "#######################################.@.#######################################\n" +
+            "#.#.......#.............#.......#...................#.....#....h......#.......#.#\n" +
+            "#.#.#####.#.#######.#####.#####.#.#.###.#.###.#####.###O#.###.#######.#.#####.#.#\n" +
+            "#.#.....#...#.....#.#.....#.....#.#.#.#.#...#.#.........#.....#...#...#...#.#...#\n" +
+            "#.#####.#####.###.#.#.#####.#####.#.#.#.###.#.#################.#.#.###.#.#.###.#\n" +
+            "#.E...#.#.#..w#...#.#.#.#.Z.#...#.#.#...#...#.#...#.......#.#.U.#...#...#.#...#.#\n" +
+            "#.###.#.#.#.###.###.#.#.#.###.#.#.#.#####.###.#.#.#.#####.#.#.###########.#.#.#.#\n" +
+            "#.#...#.#...#...#...#.#.#...#.#.#.#.....#...#...#...#...#.#.#.....#.....#.#.#.#.#\n" +
+            "#.#.###.#.###.#.#.###.#.###.#.#.#####.#.###.#########.#.#.#.#####.#.###.#.#.#.#.#\n" +
+            "#.#...#.#...#.#.#...#.#...#s..#.....#.#.#.#.#.........#.#.#.#...#...#.#...#.#.#.#\n" +
+            "#####.#.###.#.#####.#.#.#.#########.#.#.#.#.#.#####.#####.#.#.#.#####.#####.#.#.#\n" +
+            "#.....#.#...#.....#...#.#.......#...#.#.#.#.#.#.....#.....#...#.......#.....#...#\n" +
+            "#.#####.#########.#####.#######.#.#####.#.#.###.###.#.#####.###.#######.#########\n" +
+            "#.#.....#...#...#.....#.#...#...#.#.....#.#.#...#...#.#.#...#.#.....#...#...#..m#\n" +
+            "#.#.#####.#.#.#.#.###.#.#.#.#####.#.###.#.#.#.###.###.#.#.###.#####.#.###.#.###.#\n" +
+            "#.#.#.....#.#.#...#.#.#...#...#...#...#.#.#...#.....#.#...#.......#...#..e#...#.#\n" +
+            "#.#.#####.#.#.#####.#.###.###.#.###.#.###.###.#######.#.#######.#.#####.#####.#.#\n" +
+            "#.#...#...#...#.....#...#.#...#.L.#.#...#.#...#...#...#.....#...#...#...#...#...#\n" +
+            "#.###.#.#######.###.###.###.#.###.#.###.#.#.###.#.#.#######.#.#####J#.###.#.###.#\n" +
+            "#...#...#...#...#.#.......#.#.#...#...#.#.....#.#...#.#.......#.......#...#.#...#\n" +
+            "#.#.#######.#.###.#######.#.###.###.###.#.#####.#####.#.###############.#.###.###\n" +
+            "#.#.#.......#.#.....#...#...#...#...#...#...#...#.......#...#.#.....#.#.#.....#.#\n" +
+            "#.###.#.#####.#.###.###.#####.###.###.#.#####.###.#########.#.#.###.#.#.#######.#\n" +
+            "#...#.#.......#...#...#.#...#.#...#.#.#.#.....#.#...#.....#.#...#.#.#.#.....#...#\n" +
+            "#.#.#.###########.#.#.#X#.#.#.###.#.#.###.#####.###.#.#.#.#.#####.#.#.#####.###Q#\n" +
+            "#j#.#...#.........#.#.#...#.#.V.#...#...#.#.......#.#.#.#...#.....#.#.....#.#...#\n" +
+            "###.###.#.#########.#######.#.#.#######.#.###.#.###.#.#.###.#.#.###.#.#.###.#.#.#\n" +
+            "#...#...#...#.....#d....#...#.#.#.......#...#.#.#...#.#...#...#.#...#.#.....#.#.#\n" +
+            "#.#.#.#####.###.#.###.#.#.#####.#.#####.###.###.#.#######.#####.#.###W#######.#.#\n" +
+            "#.#.#.#.......#.#...#.#.#.#..f..#...#.#.#...#...#...#...#...#...#.#.#.....#...#.#\n" +
+            "#.#.#.#######.#.#.#.#.###.###.###.#.#.#.#.###.#####.#.#.###.#.###.#.#####.#.###.#\n" +
+            "#.#.#.....C.#.#.#.#.#...#.....#...#.#.#.#.#...........#...#.#.#...#.....#...#.#.#\n" +
+            "#.#########.#.###.#.###.#######.###.#.#.#.#####.#########.#.###.###.#.#######.#.#\n" +
+            "#...#.....#.#.....#...#.....#.....#.#...#.....#.#.......#...#...#...#.........#.#\n" +
+            "#.#.#.###.#.###########.###.#######.###.#.###.###.#####.#####.###.#########.#.#.#\n" +
+            "#.#.....#.#.......#...#...#t#.....#...#.#...#.....#...#.....#...#.Y.#.#.....#.#.#\n" +
+            "#.#######.#######.#.#.###.#.#.###.###.#.###.#######.#######.###.###.#.#.#######.#\n" +
+            "#..g#.#...#.......#.#.#...#...#...#...#.#.#.#.....#.......#...#.#.#.#.#....p..#.#\n" +
+            "###.#.#N###.#######.#.#.#######.###.###.#.#.#.###.#######.###.#.#.#.#.#######.#.#\n" +
+            "#.....#.............#...#........i..#...#.....#.............#...#.........B.#...#\n" +
+            "#################################################################################";
 
 }
 
@@ -49,19 +116,14 @@ class Point {
         return list;
     }
 
-
 }
 
 @Data
-class Edge {
-    final Point head;
-    final Point tail;
-    int distance;
-}
-
 class Navigator {
     private final List<Point> walls = new ArrayList<>();
-    private final List<Point> coords = new ArrayList<>();
+    private final List<Point> keys = new ArrayList<>();
+    private final List<Point> doors = new ArrayList<>();
+    private Point start;
 
     Navigator(final String input) {
         final String[] lines = input.split("\n");
@@ -71,101 +133,72 @@ class Navigator {
                 final String s = String.valueOf(chars[j]);
                 if (s.equals("#")) {
                     walls.add(new Point(j, i));
-                } else if (s.matches("^[a-zA-Z]$")) {
+                } else if (s.matches("^[a-z]$")) {
                     final Point p = new Point(j, i);
                     p.setLabel(s);
-                    coords.add(p);
-                } else if (s.equals("@")) {
+                    keys.add(p);
+                } else if (s.matches("^[A-Z]$")) {
                     final Point p = new Point(j, i);
-                    p.setLabel("@");
-                    coords.add(0, p);
+                    p.setLabel(s);
+                    doors.add(p);
+                } else if (s.equals("@")) {
+                    start = new Point(j, i);
+                    start.setLabel("@");
                 }
             }
         }
     }
 
-    // starting with brute force
-    void solveByBruteForce() {
-        // Get first possible list of edges as starting condition for the building stack / queue
-        final Queue<List<Edge>> queue = getNextPossible(new ArrayList<>());
-        int minDistance = Integer.MAX_VALUE;
+    void solve() {
+        // some bfs here
+        Queue<Path> queue = new ArrayDeque<>();
+        Set<Path> visited = new HashSet<>();
+        final Path initial = new Path(start, 0, new TreeSet<>());
+        queue.add(initial);
+        visited.add(initial);
+        int counter = 0;
         while (!queue.isEmpty()) {
-            final List<Edge> partPaths = queue.remove();
-            // this condition checks whether we have all the paths to reach to all coords.
-            if (partPaths.size() == coords.size() - 1) {
-                final String finalPath = partPaths.stream().map(e -> e.getHead().getLabel() + " -> " + e.getTail().getLabel()).collect(Collectors.joining(", "));
-                System.out.println(finalPath);
-                final int distance = partPaths.stream().mapToInt(Edge::getDistance).sum();
-                System.out.println(distance);
-                if (distance < minDistance) {
-                    minDistance = distance;
+            final Path head = queue.remove();
+            counter++;
+            if (counter % 10000 == 0) {
+                System.out.println(counter);
+            }
+            if (head.keys.size() == keys.size()) {
+                System.out.println("counter: " + counter);
+                System.out.println(head);
+                System.out.println(head.distance);
+                break;
+            }
+            final List<Point> neighbours = head.currentLocation.neighbours();
+            neighbours.removeIf(walls::contains);
+            // if the door is present make sure that you have key for it.
+            neighbours.removeIf(p -> {
+                if (doors.contains(p)) {
+                    final String door = doors.get(doors.indexOf(p)).getLabel();
+                    return !head.keys.contains(door.toLowerCase());
                 }
-
-            } else {
-                getNextPossible(partPaths).stream().filter(l -> !queue.contains(l)).forEach(queue::add);
-            }
+                return false;
+            });
+            final List<Path> collect = neighbours.stream()
+                    .map(p -> new Path(p, head.getDistance() + 1, new TreeSet<>(head.keys)))
+                    .peek(path -> { // add key if the current location is of key.
+                        if (keys.contains(path.currentLocation)) {
+                            final String key = keys.get(keys.indexOf(path.currentLocation)).getLabel();
+                            path.keys.add(key);
+                        }
+                    })
+                    .filter(p -> !visited.contains(p))// remove if it is visited with list of keys.
+                    .collect(Collectors.toList());
+            visited.addAll(collect);
+            queue.addAll(collect);
         }
-        System.out.println("Minimum distance: " + minDistance);
-    }
-
-    Queue<List<Edge>> getNextPossible(final List<Edge> partPaths) {
-        Queue<List<Edge>> queue = new ArrayDeque<>();
-        final List<Point> visited = partPaths.stream().map(Edge::getHead).collect(Collectors.toList());
-        Point start = coords.get(0);
-        if (!partPaths.isEmpty()) {
-            start = partPaths.get(partPaths.size() - 1).getTail();
-        }
-        visited.add(start);
-        final List<Edge> possibles = findAdjacent(start, visited);
-        for (Edge edge : possibles) {
-            final Point tail = edge.getTail();
-            if (isValidPoint(tail, visited)) {
-                final List<Edge> updatedPath = new ArrayList<>(partPaths);
-                updatedPath.add(edge);
-                queue.add(updatedPath);
-            }
-        }
-
-        return queue;
-    }
-
-
-    List<Edge> findAdjacent(final Point zero, final List<Point> visited) {
-        List<Edge> paths = new ArrayList<>();
-        Map<Point, Integer> distanceMap = new HashMap<>();
-        distanceMap.put(zero, 0);
-        // we will do BFS to get shortest distance from zero in case there are more than one path to take
-        final Queue<Point> interestingPoints = new ArrayDeque<>();
-        interestingPoints.add(zero);
-        while (!interestingPoints.isEmpty()) {
-            final Point check = interestingPoints.remove();
-            if (coords.contains(check) && !zero.equals(check) && !visited.contains(check)) {
-                final Edge edge = new Edge(zero, coords.get(coords.indexOf(check)));
-                edge.setDistance(distanceMap.get(check));
-                paths.add(edge);
-//                System.out.println(edge);
-                // if I want just immediate links and not all the links then if the point is part of coords then do not follow to get its neighbours.
-                continue;
-            }
-            final List<Point> neighbours = check.neighbours();
-            neighbours.removeIf(walls::contains); // if it is wall ignore
-            neighbours.removeIf(distanceMap::containsKey); // if it is traversed ignore
-
-            interestingPoints.addAll(neighbours); // check remaining points
-            neighbours.forEach(e -> distanceMap.put(e, distanceMap.get(check) + 1)); // as we calculated neighbours the distance is incremented by one.
-        }
-        return paths;
-    }
-
-    boolean isValidPoint(final Point point, final List<Point> visited) {
-        if (visited.stream().anyMatch(point::equals)) {
-            return false;
-        }
-        final String label = point.getLabel();
-        if (label.matches("[A-Z]")) {
-            return visited.stream().map(Point::getLabel).anyMatch(l -> l.equals(label.toLowerCase()));
-        }
-        return true;
     }
 }
 
+@Data
+class Path {
+    final Point currentLocation;
+    @EqualsAndHashCode.Exclude
+    final int distance;
+    final SortedSet<String> keys;
+}
